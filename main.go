@@ -1,17 +1,24 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
-type Item struct {
-	task      string
-	completed bool
+type ItemList struct {
+	Tasks []Item `json:"itemList"`
 }
+
+type Item struct {
+	Task      string `json:"task"`
+	Completed bool   `json:"completed"`
+}
+
+var fileDir string
 
 func init() {
 	// TODO: Check if folder and json storage file have been created
@@ -38,6 +45,8 @@ func init() {
 		}
 		log.Println("File created successfully")
 	}
+
+	fileDir = filepath.Join(home, "togo", ".togo.json")
 }
 
 func main() {
@@ -51,62 +60,47 @@ func main() {
 		log.Fatalln("Too many arguments. run `togo help` for a list of available commands")
 	}
 
-	taskList := []Item{{task: "Hello 1", completed: true}, {task: "Hello 2", completed: false}}
-
 	switch args[0] {
 	case "new":
 		if len(args) != 2 {
 			log.Fatalln("Incorrect call to `new`. Usage: `new <task>`")
 		}
-		task := Item{task: args[1], completed: false}
-		taskList = append(taskList, task)
-		log.Println("Saved tasks: ", taskList)
+		newTask := Item{Task: args[1], Completed: false}
+
+		fileData, err := ioutil.ReadFile(fileDir)
+		if err != nil {
+			log.Fatalln("Error reading stored tasks. Task not added. err: ", err)
+		}
+
+		var allTasks ItemList
+
+		err = json.Unmarshal(fileData, &allTasks.Tasks)
+		if err != nil {
+			log.Fatalln("Error unmarshalling file data: ", err)
+		}
+
+		newTaskList := append(allTasks.Tasks, newTask)
+
+		data, err := json.MarshalIndent(newTaskList, "", "\t")
+		if err != nil {
+			log.Fatalln("Error marshalling json: ", err)
+		}
+
+		err = ioutil.WriteFile(fileDir, data, 0755)
+		if err != nil {
+			log.Fatalln("Error writing to file: ", err)
+		}
+
+		log.Println("Task added successfully")
+		log.Println("Remaining Tasks\n", newTaskList)
 
 	case "done":
-		if len(args) != 2 {
-			log.Fatalln("Incorrect call to `done`. Usage: `done <index>`")
-		}
-		idx, err := strconv.Atoi(args[1])
-		if err != nil {
-			log.Fatalln("Not a valid integer index")
-		}
-
-		if idx > len(taskList) {
-			log.Fatalln("Provided index is out of range of stored tasks.")
-		}
-
-		taskList[idx].completed = true
-		log.Printf("Completed task number %d. tasks:\n%v", idx, taskList)
 
 	case "clean":
-		count := 0
-		for idx, task := range taskList {
-			if task.completed == true {
-				taskList = append(taskList[:idx], taskList[idx+1:]...)
-				count++
-			}
-		}
-		log.Printf("Cleaned %d tasks.", count)
 
 	case "del":
-		if len(args) != 2 {
-			log.Fatalln("Incorrect call to `del`. Usage: `del <index>`")
-		}
-		idx, err := strconv.Atoi(args[1])
-		if err != nil {
-			log.Fatalln("Not a valid integer index")
-		}
-
-		if idx > len(taskList) {
-			log.Fatalln("Provided index is out of range of stored tasks.")
-		}
-
-		taskList = append(taskList[:idx], taskList[idx+1:]...)
-		log.Printf("Removed task number %d. Remaining tasks:\n%v", idx, taskList)
 
 	case "clear":
-		taskList = []Item{}
-		log.Println("Cleared all tasks.")
 	case "help":
 		log.Println("\n togo usage:\n `add <task>` - adds a new task to your list\n `done <index> - sets the task at the given integer index to complete\n `clean` - clears all completed tasks from your list\n `clear` - removes all tasks from your list\n `del <index> - removes a task at the given integer index")
 
