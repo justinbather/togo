@@ -1,14 +1,43 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 )
 
 type Item struct {
 	task      string
 	completed bool
+}
+
+func init() {
+	// TODO: Check if folder and json storage file have been created
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalln("Error finding user home: ", err)
+	}
+
+	err = os.Chdir(home)
+	if err != nil {
+		log.Fatalln("Error changing directory to home: ", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(home, "togo", ".togo.json")); errors.Is(err, os.ErrNotExist) {
+		err = os.MkdirAll(filepath.Join(home, "togo"), 0755)
+		if err != nil {
+			log.Fatalln("Error creating directory: ", err)
+		}
+		log.Println("Folder created successfully")
+
+		_, err := os.Create(filepath.Join(home, "togo", ".togo.json"))
+		if err != nil {
+			log.Fatalln("Error creating togo.json: ", err)
+		}
+		log.Println("File created successfully")
+	}
 }
 
 func main() {
