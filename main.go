@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Item struct {
@@ -16,6 +17,7 @@ type Item struct {
 var fileDir string
 
 func validateArgs(args []string, expectedLen int, cmd string) {
+	log.Println(args)
 	if len(args) != expectedLen {
 		log.Fatalf("Incorrect call to `%s`. See help for usage", cmd)
 	}
@@ -47,6 +49,15 @@ func fetch(fp string) []Item {
 	}
 
 	return allTasks
+}
+
+// given ["new", "task", "hello"]
+// return ["new", "task hello"]
+func parseArgs(args []string) []string {
+	joined := strings.Join(args[1:], " ")
+	log.Println("joined: ", joined)
+
+	return []string{args[0], joined}
 }
 
 func init() {
@@ -85,14 +96,10 @@ func main() {
 		log.Fatalln("Not enough arguments. run `togo help` for list of available commands")
 	}
 
-	if len(args) > 2 {
-		log.Fatalln("Too many arguments. run `togo help` for a list of available commands")
-	}
-
 	switch args[0] {
 	case "new":
-		// NOTE: Check errors with invocation
-
+		// ["new", "kjd sdkjs sdkjsd"]
+		args = parseArgs(args)
 		validateArgs(args, 2, "new")
 
 		tasks := fetch(fileDir)
