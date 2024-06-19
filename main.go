@@ -3,15 +3,10 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 )
-
-type ItemList struct {
-	Tasks []Item `json:"itemList"`
-}
 
 type Item struct {
 	Task      string `json:"task"`
@@ -19,6 +14,40 @@ type Item struct {
 }
 
 var fileDir string
+
+func validateArgs(args []string, expectedLen int, cmd string) {
+	if len(args) != expectedLen {
+		log.Fatalf("Incorrect call to `%s`. See help for usage", cmd)
+	}
+}
+
+func persist(fp string, data any) {
+	res, err := json.MarshalIndent(data, "", "\t")
+	if err != nil {
+		log.Fatalln("Error marshalling json: ", err)
+	}
+
+	err = os.WriteFile(fp, res, 0755)
+	if err != nil {
+		log.Fatalln("Error writing to file: ", err)
+	}
+}
+
+func fetch(fp string) []Item {
+	fileData, err := os.ReadFile(fp)
+	if err != nil {
+		log.Fatalln("Error reading stored tasks. Task not added. err: ", err)
+	}
+
+	var allTasks []Item
+
+	err = json.Unmarshal(fileData, &allTasks)
+	if err != nil {
+		log.Fatalln("Error unmarshalling file data: ", err)
+	}
+
+	return allTasks
+}
 
 func init() {
 	// TODO: Check if folder and json storage file have been created
@@ -62,37 +91,21 @@ func main() {
 
 	switch args[0] {
 	case "new":
-		if len(args) != 2 {
-			log.Fatalln("Incorrect call to `new`. Usage: `new <task>`")
-		}
+		// NOTE: Check errors with invocation
+
+		validateArgs(args, 2, "new")
+
+		tasks := fetch(fileDir)
+
 		newTask := Item{Task: args[1], Completed: false}
 
-		fileData, err := ioutil.ReadFile(fileDir)
-		if err != nil {
-			log.Fatalln("Error reading stored tasks. Task not added. err: ", err)
-		}
+		tasks = append(tasks, newTask)
 
-		var allTasks ItemList
+		persist(fileDir, tasks)
 
-		err = json.Unmarshal(fileData, &allTasks.Tasks)
-		if err != nil {
-			log.Fatalln("Error unmarshalling file data: ", err)
-		}
-
-		newTaskList := append(allTasks.Tasks, newTask)
-
-		data, err := json.MarshalIndent(newTaskList, "", "\t")
-		if err != nil {
-			log.Fatalln("Error marshalling json: ", err)
-		}
-
-		err = ioutil.WriteFile(fileDir, data, 0755)
-		if err != nil {
-			log.Fatalln("Error writing to file: ", err)
-		}
-
+		// NOTE: pretty print??
 		log.Println("Task added successfully")
-		log.Println("Remaining Tasks\n", newTaskList)
+		log.Println("Remaining Tasks\n", tasks)
 
 	case "done":
 
