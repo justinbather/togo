@@ -25,15 +25,31 @@ func validateArgs(args []string, expectedLen int, cmd string) {
 }
 
 func print(tasks []Item) {
-	fmt.Print("------------------------------------------\n")
-	for _, item := range tasks {
-		if item.Completed == true {
-			fmt.Printf("|\t- \u2705 %s\n", item.Task)
-		} else {
-			fmt.Printf("|\t- [] %s\n", item.Task)
+	width := 0
+	for _, task := range tasks {
+		if len(task.Task) > width {
+			width = len(task.Task)
 		}
 	}
-	fmt.Print("------------------------------------------")
+
+	for range width {
+		fmt.Print("-")
+	}
+	fmt.Print("-------")
+	fmt.Print("\n")
+	for _, item := range tasks {
+		if item.Completed == true {
+			fmt.Printf("|- \u2705 %s\n", item.Task)
+		} else {
+			fmt.Printf("|- [] %s\n", item.Task)
+		}
+	}
+
+	for range width {
+		fmt.Print("-")
+	}
+
+	fmt.Print("-------")
 }
 
 func persist(fp string, data any) {
@@ -70,6 +86,15 @@ func parseStringArgs(args []string) []string {
 	joined := strings.Join(args[1:], " ")
 
 	return []string{args[0], joined}
+}
+
+func parseIntArgs(args []string) int {
+	i, err := strconv.Atoi(args[1])
+	if err != nil {
+		log.Fatalln("Must provide a valid integer value")
+	}
+	return i
+
 }
 
 func init() {
@@ -113,51 +138,63 @@ func main() {
 		validateArgs(args, 2, "new")
 
 		tasks := fetch(fileDir)
-
 		newTask := Item{Task: args[1], Completed: false}
-
 		tasks = append(tasks, newTask)
 
 		persist(fileDir, tasks)
-
-		// NOTE: pretty print??
-		fmt.Println("Task added successfully")
-		fmt.Println("Remaining tasks:")
+		return
 
 	case "done":
 		validateArgs(args, 2, "done")
-
-		index, err := strconv.Atoi(args[1])
-		if err != nil {
-			log.Fatalln("Must provide a valid integer index value")
-		}
+		idx := parseIntArgs(args)
 
 		taskList := fetch(fileDir)
-		if index > len(taskList) {
+		if idx > len(taskList) {
 			log.Fatalln("Index out of range")
 		}
 
-		taskList[index].Completed = true
+		taskList[idx].Completed = true
 		persist(fileDir, taskList)
+		print(taskList)
+		return
 
 	case "clean":
+		dirty := fetch(fileDir)
+		cleaned := []Item{}
+		numCleaned := 0
+		for _, task := range dirty {
+			if task.Completed == false {
+				cleaned = append(cleaned, task)
+			} else {
+				numCleaned++
+			}
+		}
+
+		persist(fileDir, cleaned)
+		fmt.Printf("Cleaned %d tasks.", numCleaned)
+		return
 
 	case "list":
 		validateArgs(args, 1, "list")
 		tasks := fetch(fileDir)
 		print(tasks)
+		return
 
 	case "del":
+		return
 
 	case "clear":
 		persist(fileDir, []Item{})
 		log.Println("Cleared all tasks")
+		return
 
 	case "help":
 		log.Println("\n togo usage:\n `add <task>` - adds a new task to your list\n `done <index> - sets the task at the given integer index to complete\n `clean` - clears all completed tasks from your list\n `clear` - removes all tasks from your list\n `del <index> - removes a task at the given integer index")
+		return
 
 	default:
 		log.Println("Incorrect usage.\n usage:\n `add <task>` - adds a new task to your list\n `done <index> - sets the task at the given integer index to complete\n `clean` - clears all completed tasks from your list\n `clear` - removes all tasks from your list\n `del <index> - removes a task at the given integer index")
+		return
 
 	}
 
